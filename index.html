@@ -20,15 +20,15 @@ int Seuil;
 int Signal;
 
 void neopixel_showAllLed(Adafruit_NeoPixel *neoPx, uint8_t ledCount, uint8_t r, uint8_t g, uint8_t b) {
-  for (int i=0; i<ledCount; i++) {
-    neoPx->setPixelColor(i, neoPx->Color(r, g, b));
+  for (int i=0; i&lt;ledCount; i++) {
+    neoPx-&gt;setPixelColor(i, neoPx-&gt;Color(r, g, b));
   }
-  neoPx->show();
+  neoPx-&gt;show();
 }
 
 uint16_t getAnalogMean(uint8_t pin, long n) {
   int sum = 0;
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i &lt; n; i++) {
     sum += analogRead(pin);
     delay(1);
   }
@@ -47,22 +47,22 @@ void serial_setupConnection(long baudrate) {
 
 void Neopixel_On(int Signal_2)
 {
-    if (Signal_2 > NP_LED_COUNT_2)
+    if (Signal_2 &gt; NP_LED_COUNT_2)
         Signal_2 = NP_LED_COUNT_2;
 
-    if (Signal_2 < 0)
+    if (Signal_2 &lt; 0)
         Signal_2 = 0;
 
-    for (int i = 0; i < NP_LED_COUNT_2; i++)
+    for (int i = 0; i &lt; NP_LED_COUNT_2; i++)
     {
-        if (i < Signal_2)
+        if (i &lt; Signal_2)
         {
             float ratio = (float)i / (NP_LED_COUNT_2 - 1);
 
             uint8_t red;
             uint8_t green;
 
-            if (ratio < 0.5f)
+            if (ratio &lt; 0.5f)
             {
                 red   = (uint8_t)(ratio * 2.0f * 255.0f);
                 green = 255;
@@ -86,7 +86,7 @@ void Neopixel_On(int Signal_2)
 
 void Neopixel_Off()
 {
-    for (int i = 0; i < NP_LED_COUNT_2; i++)
+    for (int i = 0; i &lt; NP_LED_COUNT_2; i++)
     {
         Neopixel_2.setPixelColor(i, Neopixel_2.Color(0, 0, 0));
     }
@@ -105,7 +105,7 @@ void setup() {
   Led = 0;
   Seuil = 0;
   Signal = 0;
-  for (int count = 0; count < 3; count++) {
+  for (int count = 0; count &lt; 3; count++) {
     Neopixel_On(30);
     delay(1000*0.5);
     Neopixel_Off();
@@ -123,4 +123,4 @@ void loop() {
 </code></pre>
 
   </body>
-    </html>
+</html>
