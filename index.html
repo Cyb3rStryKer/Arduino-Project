@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    #include <Adafruit_NeoPixel.h>
+
+#define NP_LED_COUNT_2 30
+#define PIN_SOUND_SENSOR_A0  A0
+#define PIN_POTENTIOMETER_A1  A1
+
+Adafruit_NeoPixel Neopixel_2(NP_LED_COUNT_2, 2, NEO_GRB + NEO_KHZ800);
+
+int i;
+int Red;
+int Green;
+int Son;
+int Led;
+int Seuil;
+int Signal;
+
+void neopixel_showAllLed(Adafruit_NeoPixel *neoPx, uint8_t ledCount, uint8_t r, uint8_t g, uint8_t b) {
+  for (int i=0; i<ledCount; i++) {
+    neoPx->setPixelColor(i, neoPx->Color(r, g, b));
+  }
+  neoPx->show();
+}
+
+uint16_t getAnalogMean(uint8_t pin, long n) {
+  int sum = 0;
+  for (int i = 0; i < n; i++) {
+    sum += analogRead(pin);
+    delay(1);
+  }
+  return sum / n;
+}
+
+void serial_setupConnection(long baudrate) {
+  Serial.begin(baudrate);
+  while (!Serial) {
+    Serial.println("En attente de l'ouverture du port série...");
+    delay(1000);
+  }
+  Serial.println("Port série activé. Baudrate: " + String(baudrate));
+  delay(50);
+}
+
+void Neopixel_On(int Signal_2)
+{
+    if (Signal_2 > NP_LED_COUNT_2)
+        Signal_2 = NP_LED_COUNT_2;
+
+    if (Signal_2 < 0)
+        Signal_2 = 0;
+
+    for (int i = 0; i < NP_LED_COUNT_2; i++)
+    {
+        if (i < Signal_2)
+        {
+            float ratio = (float)i / (NP_LED_COUNT_2 - 1);
+
+            uint8_t red;
+            uint8_t green;
+
+            if (ratio < 0.5f)
+            {
+                red   = (uint8_t)(ratio * 2.0f * 255.0f);
+                green = 255;
+            }
+            else
+            {
+                red   = 255;
+                green = (uint8_t)((1.0f - (ratio - 0.5f) * 2.0f) * 255.0f);
+            }
+
+            Neopixel_2.setPixelColor(i, Neopixel_2.Color(red, green, 0));
+        }
+        else
+        {
+            Neopixel_2.setPixelColor(i, 0);
+        }
+    }
+
+    Neopixel_2.show();
+}
+
+void Neopixel_Off()
+{
+    for (int i = 0; i < NP_LED_COUNT_2; i++)
+    {
+        Neopixel_2.setPixelColor(i, Neopixel_2.Color(0, 0, 0));
+    }
+
+    Neopixel_2.show();
+}
+
+void setup() {
+  Neopixel_2.begin();
+  pinMode(PIN_SOUND_SENSOR_A0, INPUT);
+  pinMode(PIN_POTENTIOMETER_A1, INPUT);
+  serial_setupConnection(9600);
+  Green = 255;
+  Red = 0;
+  Son = 0;
+  Led = 0;
+  Seuil = 0;
+  Signal = 0;
+  for (int count = 0; count < 3; count++) {
+    Neopixel_On(30);
+    delay(1000*0.5);
+    Neopixel_Off();
+    delay(1000*0.5);
+  }
+}
+
+void loop() {
+  Son = getAnalogMean(PIN_SOUND_SENSOR_A0, 5);
+  Seuil = analogRead(PIN_POTENTIOMETER_A1);
+  Signal = 0;
+  Serial.println(String(Signal));
+  delay(1000*1);
+}
+  </body>
+</html>
