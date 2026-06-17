@@ -5,29 +5,20 @@
 <pre style="white-space: pre-wrap;"><code>
 #include &lt;Adafruit_NeoPixel.h&gt;
 
+//⚠️ATTENTION CODE UNIQUEMENT COMPATIBLE AVEC NEOPIXEL⚠️
+
 #define NP_LED_COUNT_2 30
+// ⚠️ Définir ici le nombre EXACT de LEDs de la Neopixel⚠️
+
 #define PIN_SOUND_SENSOR_A0  A0
 #define PIN_POTENTIOMETER_A1  A1
+#define LED_PIN 2
+//⚠️BRANCHER CAPTEUR DE SON SUR PIN A0, POTENTIOMETRE SUR A1 ET NEOPIXEL SUR D2⚠️
 
-Adafruit_NeoPixel Neopixel_2(NP_LED_COUNT_2, 2, NEO_GRB + NEO_KHZ800);
-
-int i;
-int Red;
-int Green;
-int Son;
-int Led;
-int Seuil;
-int Signal;
-
-void neopixel_showAllLed(Adafruit_NeoPixel *neoPx, uint8_t ledCount, uint8_t r, uint8_t g, uint8_t b) {
-  for (int i=0; i&lt;ledCount; i++) {
-    neoPx-&gt;setPixelColor(i, neoPx-&gt;Color(r, g, b));
-  }
-  neoPx-&gt;show();
-}
+Adafruit_NeoPixel Neopixel_2(NP_LED_COUNT_2, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 uint16_t getAnalogMean(uint8_t pin, long n) {
-  int sum = 0;
+  long sum = 0;
   for (int i = 0; i &lt; n; i++) {
     sum += analogRead(pin);
     delay(1);
@@ -35,90 +26,85 @@ uint16_t getAnalogMean(uint8_t pin, long n) {
   return sum / n;
 }
 
-void serial_setupConnection(long baudrate) {
-  Serial.begin(baudrate);
-  while (!Serial) {
-    Serial.println("En attente de l'ouverture du port série...");
-    delay(1000);
+int GetDecibels(int Analog_Sound)
+{
+  if (Analog_Sound &lt;= 0) return 0;
+
+  if (Analog_Sound &lt;= 258)
+    return round(1.8593 * exp(0.0135 * Analog_Sound));
+
+  return round(16.777 * log(Analog_Sound) - 31.884);
+}
+
+void updateBar(int level)
+{
+  level = constrain(level, 0, NP_LED_COUNT_2);
+
+  for (int i = 0; i &lt; NP_LED_COUNT_2; i++)
+  {
+    if (i &lt; level)
+    {
+      float ratio = (float)i / (NP_LED_COUNT_2 - 1);
+
+      uint8_t r, g;
+
+      if (ratio &lt; 0.5f)
+      {
+        r = (uint8_t)(ratio * 2.0f * 255.0f);
+        g = 255;
+      }
+      else
+      {
+        r = 255;
+        g = (uint8_t)((1.0f - (ratio - 0.5f) * 2.0f) * 255.0f);
+      }
+
+      Neopixel_2.setPixelColor(i, Neopixel_2.Color(r, g, 0));
+    }
+    else
+    {
+      Neopixel_2.setPixelColor(i, Neopixel_2.Color(0, 0, 0));
+    }
   }
-  Serial.println("Port série activé. Baudrate: " + String(baudrate));
-  delay(50);
+
+  Neopixel_2.show();
 }
 
-void Neopixel_On(int Signal_2)
+void setup()
 {
-    if (Signal_2 &gt; NP_LED_COUNT_2)
-        Signal_2 = NP_LED_COUNT_2;
+  Serial.begin(9600);
 
-    if (Signal_2 &lt; 0)
-        Signal_2 = 0;
-
-    for (int i = 0; i &lt; NP_LED_COUNT_2; i++)
-    {
-        if (i &lt; Signal_2)
-        {
-            float ratio = (float)i / (NP_LED_COUNT_2 - 1);
-
-            uint8_t red;
-            uint8_t green;
-
-            if (ratio &lt; 0.5f)
-            {
-                red   = (uint8_t)(ratio * 2.0f * 255.0f);
-                green = 255;
-            }
-            else
-            {
-                red   = 255;
-                green = (uint8_t)((1.0f - (ratio - 0.5f) * 2.0f) * 255.0f);
-            }
-
-            Neopixel_2.setPixelColor(i, Neopixel_2.Color(red, green, 0));
-        }
-        else
-        {
-            Neopixel_2.setPixelColor(i, 0);
-        }
-    }
-
-    Neopixel_2.show();
-}
-
-void Neopixel_Off()
-{
-    for (int i = 0; i &lt; NP_LED_COUNT_2; i++)
-    {
-        Neopixel_2.setPixelColor(i, Neopixel_2.Color(0, 0, 0));
-    }
-
-    Neopixel_2.show();
-}
-
-void setup() {
   Neopixel_2.begin();
+  Neopixel_2.show();
+
   pinMode(PIN_SOUND_SENSOR_A0, INPUT);
   pinMode(PIN_POTENTIOMETER_A1, INPUT);
-  serial_setupConnection(9600);
-  Green = 255;
-  Red = 0;
-  Son = 0;
-  Led = 0;
-  Seuil = 0;
-  Signal = 0;
-  for (int count = 0; count &lt; 3; count++) {
-    Neopixel_On(30);
-    delay(1000*0.5);
-    Neopixel_Off();
-    delay(1000*0.5);
-  }
+
+  updateBar(NP_LED_COUNT_2);
+  delay(500);
+  updateBar(0);
 }
 
-void loop() {
-  Son = getAnalogMean(PIN_SOUND_SENSOR_A0, 5);
-  Seuil = analogRead(PIN_POTENTIOMETER_A1);
-  Signal = 0;
-  Serial.println(String(Signal));
-  delay(1000*1);
+void loop()
+{
+  int analogSound = getAnalogMean(PIN_SOUND_SENSOR_A0, 5);
+  int pot = analogRead(PIN_POTENTIOMETER_A1);
+
+  float maxDb = 84.0 - (74.0 * pot / 1023.0);
+  if (maxDb &lt; 10.0) maxDb = 10.0;
+
+  int db = GetDecibels(analogSound);
+  if (db &lt; 0) db = 0;
+
+  int signal = constrain(
+    (db * NP_LED_COUNT_2) / maxDb,
+    0,
+    NP_LED_COUNT_2
+  );
+
+  updateBar(signal);
+
+  delay(30);
 }
 </code></pre>
 
