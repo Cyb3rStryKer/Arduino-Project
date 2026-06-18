@@ -2,111 +2,323 @@
 <html>
   <body>
 
-<pre style="white-space: pre-wrap;"><code>
-#include &lt;Adafruit_NeoPixel.h&gt;
+<pre style="white-space: pre-wrap;"><code>#include &lt;Adafruit_NeoPixel.h&gt;
 
-//⚠️ATTENTION CODE UNIQUEMENT COMPATIBLE AVEC NEOPIXEL⚠️
+// ========
+// REGLAGES
+// ========
 
+// Nombre LEDs NEOPIXEL
 #define NP_LED_COUNT_2 30
-// ⚠️ Définir ici le nombre EXACT de LEDs de la Neopixel⚠️
 
-#define PIN_SOUND_SENSOR_A0  A0
-#define PIN_POTENTIOMETER_A1  A1
+// Pin NEOPIXEL
 #define LED_PIN 2
-//⚠️BRANCHER CAPTEUR DE SON SUR PIN A0, POTENTIOMETRE SUR A1 ET NEOPIXEL SUR D2⚠️
 
+// Pin micro
+#define PIN_SOUND_SENSOR_A0 A0
+
+// Pin potentiometre
+#define PIN_POTENTIOMETER_A1 A1
+
+// Descente barre (ms)
+#define FALL_TIME_MS 1000
+
+// Attente avant descente (ms)
+#define FALL_DELAY_MS 200
+
+// Maintien pic (ms)
+#define PEAK_HOLD_MS 3000
+
+// Couleur pic
+#define PEAK_R 255
+#define PEAK_G 255
+#define PEAK_B 255
+
+
+
+// Compatible Vittascience
 Adafruit_NeoPixel Neopixel_2(NP_LED_COUNT_2, LED_PIN, NEO_GRB + NEO_KHZ800);
 
-uint16_t getAnalogMean(uint8_t pin, long n) {
+
+
+int displayLevel = 0;
+
+// Niveau du pic
+int peakLevel = 0;
+
+
+unsigned long lastRiseTime = 0;
+unsigned long lastPeakTime = 0;
+unsigned long lastFallUpdate = 0;
+
+
+
+// ========
+// MOYENNE MICRO
+// ========
+
+uint16_t getAnalogMean(byte pin, int n)
+{
   long sum = 0;
-  for (int i = 0; i &lt; n; i++) {
+
+  for(int i = 0; i &lt; n; i++)
+  {
     sum += analogRead(pin);
     delay(1);
   }
+
   return sum / n;
 }
 
-int GetDecibels(int Analog_Sound)
+
+
+// ========
+// CONVERSION SON EN DB
+// ========
+
+int GetDecibels(int value)
 {
-  if (Analog_Sound &lt;= 0) return 0;
 
-  if (Analog_Sound &lt;= 258)
-    return round(1.8593 * exp(0.0135 * Analog_Sound));
+  if(value &lt;= 0)
+  {
+    return 0;
+  }
 
-  return round(16.777 * log(Analog_Sound) - 31.884);
+
+  if(value &gt; 1023)
+  {
+    value = 1023;
+  }
+
+
+  int db;
+
+
+  if(value &lt;= 258)
+  {
+    db = (int)(1.8593 * exp(0.0135 * value));
+  }
+  else
+  {
+    db = (int)(16.777 * log(value) - 31.884);
+  }
+
+
+  if(db &lt; 0)
+  {
+    db = 0;
+  }
+
+
+  if(db &gt; 120)
+  {
+    db = 120;
+  }
+
+
+  return db;
 }
 
-void updateBar(int level)
+
+
+// ========
+// AFFICHAGE BARRE
+// ========
+
+void drawVU(int level, int peak)
 {
-  level = constrain(level, 0, NP_LED_COUNT_2);
 
-  for (int i = 0; i &lt; NP_LED_COUNT_2; i++)
+  for(int i = 0; i &lt; NP_LED_COUNT_2; i++)
   {
-    if (i &lt; level)
+
+    // Barre LED
+    if(i &lt; level)
     {
-      float ratio = (float)i / (NP_LED_COUNT_2 - 1);
 
-      uint8_t r, g;
+      int r;
+      int g;
 
-      if (ratio &lt; 0.5f)
+
+      // Vert vers jaune
+      if(i &lt; 15)
       {
-        r = (uint8_t)(ratio * 2.0f * 255.0f);
+        r = map(i,0,14,0,255);
         g = 255;
       }
+
+      // Jaune vers rouge
       else
       {
         r = 255;
-        g = (uint8_t)((1.0f - (ratio - 0.5f) * 2.0f) * 255.0f);
+        g = map(i,15,29,255,0);
       }
 
-      Neopixel_2.setPixelColor(i, Neopixel_2.Color(r, g, 0));
+
+      Neopixel_2.setPixelColor(
+        i,
+        Neopixel_2.Color(r,g,0)
+      );
+
     }
+
     else
     {
-      Neopixel_2.setPixelColor(i, Neopixel_2.Color(0, 0, 0));
+      Neopixel_2.setPixelColor(
+        i,
+        Neopixel_2.Color(0,0,0)
+      );
     }
+
   }
 
+
+
+  // Pic juste au-dessus de la barre
+  if(peak &gt;= 0 &amp;&amp; peak &lt; NP_LED_COUNT_2)
+  {
+    Neopixel_2.setPixelColor(
+      peak,
+      Neopixel_2.Color(PEAK_R,PEAK_G,PEAK_B)
+    );
+  }
+
+
+
   Neopixel_2.show();
+
 }
+
+
+
+// ========
+// SETUP
+// ========
 
 void setup()
 {
+
   Serial.begin(9600);
 
+
+  pinMode(PIN_SOUND_SENSOR_A0,INPUT);
+  pinMode(PIN_POTENTIOMETER_A1,INPUT);
+
+
   Neopixel_2.begin();
+
   Neopixel_2.show();
 
-  pinMode(PIN_SOUND_SENSOR_A0, INPUT);
-  pinMode(PIN_POTENTIOMETER_A1, INPUT);
 
-  updateBar(NP_LED_COUNT_2);
-  delay(500);
-  updateBar(0);
+  drawVU(0,-1);
+
 }
+
+
+
+// ========
+// LOOP
+// ========
 
 void loop()
 {
-  int analogSound = getAnalogMean(PIN_SOUND_SENSOR_A0, 5);
+
+  // Lecture micro
+  int sound = getAnalogMean(PIN_SOUND_SENSOR_A0,5);
+
+
+
+  // Lecture potentiometre
   int pot = analogRead(PIN_POTENTIOMETER_A1);
 
-  float maxDb = 84.0 - (74.0 * pot / 1023.0);
-  if (maxDb &lt; 10.0) maxDb = 10.0;
 
-  int db = GetDecibels(analogSound);
-  if (db &lt; 0) db = 0;
 
-  int signal = constrain(
-    (db * NP_LED_COUNT_2) / maxDb,
-    0,
-    NP_LED_COUNT_2
-  );
+  // Sensibilité
+  int maxDb = 84 - (14 * pot / 1023);
 
-  updateBar(signal);
 
-  delay(30);
-}
-</code></pre>
+  if(maxDb &lt; 10)
+  {
+    maxDb = 10;
+  }
+
+
+
+  int db = GetDecibels(sound);
+
+
+
+  int signal = (db * NP_LED_COUNT_2) / maxDb;
+
+
+
+  if(signal &gt; NP_LED_COUNT_2)
+  {
+    signal = NP_LED_COUNT_2;
+  }
+
+
+  if(signal &lt; 0)
+  {
+    signal = 0;
+  }
+
+
+
+  unsigned long now = millis();
+
+
+
+  // Montée barre + nouveau pic
+  if(signal &gt; displayLevel)
+  {
+    displayLevel = signal;
+
+    peakLevel = displayLevel;
+
+    lastPeakTime = now;
+
+    lastRiseTime = now;
+  }
+
+
+
+  // Descente progressive
+  if(signal &lt; displayLevel)
+  {
+
+    if(now - lastRiseTime &gt; FALL_DELAY_MS)
+    {
+
+      if(now - lastFallUpdate &gt; (FALL_TIME_MS / NP_LED_COUNT_2))
+      {
+  
+      displayLevel--;
+
+        lastFallUpdate = now;
+      }
+
+    }
+
+  }
+
+
+
+  // Après 3 secondes le pic revient
+  if(now - lastPeakTime &gt; PEAK_HOLD_MS)
+  {
+    peakLevel = displayLevel;
+  }
+
+
+
+  // Affichage
+  drawVU(displayLevel,peakLevel);
+
+
+
+  delay(10);
+
+}</code></pre>
 
   </body>
 </html>
